@@ -1,9 +1,5 @@
 # 5a_Create_Socket_for_HTTP_for_webpage_upload_and_download
 
-**NAME : THARUN SRIDHAR**
-
-**REGISTER NO : 212223230230**
-
 ## AIM :
 To write a PYTHON program for socket for HTTP for web page upload and download
 
@@ -25,46 +21,81 @@ To write a PYTHON program for socket for HTTP for web page upload and download
 ```
 import socket
 
-def handle_request(request):
-    # Process the HTTP request and generate an appropriate response
-    response = "HTTP/1.1 200 OK\nContent-Type: text/html\n\n<h1>Hello, World!</h1>"
-    return response
+def send_request(host, port, request):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((host, port))
+        s.sendall(request.encode())  # Send the headers in plain text
+        response = b""
+        
+        # Handle large responses by receiving in chunks
+        while True:
+            chunk = s.recv(4096)
+            if not chunk:
+                break
+            response += chunk
+        
+    return response.decode()
 
-def main():
-    host = ''  # Listen on all available interfaces
-    port = 8080  # Port number for HTTP server
+def upload_file(host, port, filename):
+    with open(filename, 'rb') as file:
+        file_data = file.read()
+        content_length = len(file_data)
 
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((host, port))
-    server_socket.listen(5)  # Listen for incoming connections
+        # Properly formatted request headers
+        request_header = (f"POST /upload HTTP/1.1\r\n"
+                          f"Host: {host}\r\n"
+                          f"Content-Length: {content_length}\r\n"
+                          f"Connection: close\r\n\r\n")
+        
+        # Send the headers first
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((host, port))
+            s.sendall(request_header.encode())  # Send the header
 
-    print("HTTP server listening on port", port)
+            # Now send the file data in binary format
+            s.sendall(file_data)
 
-    while True:
-        client_socket, client_address = server_socket.accept()  # Accept a new connection
-        print("Client connected:", client_address)
+            # Receive the response from the server
+            response = b""
+            while True:
+                chunk = s.recv(4096)
+                if not chunk:
+                    break
+                response += chunk
+        
+        return response.decode()
 
-        request_data = client_socket.recv(1024).decode()  # Receive request data from the client
-        print("Received request:\n", request_data)
-
-        response = handle_request(request_data)  # Handle the request
-        client_socket.sendall(response.encode())  # Send the response back to the client
-
-        client_socket.close()  # Close the connection
+def download_file(host, port, filename):
+    # Simple GET request to download the file
+    request = f"GET /{filename} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
+    
+    # Send request and receive response
+    response = send_request(host, port, request)
+    
+    # Split the response into headers and body
+    headers, file_content = response.split('\r\n\r\n', 1)
+    
+    # Save the file content in binary mode
+    with open(filename, 'wb') as file:
+        file.write(file_content.encode())  # Ensure this is binary-safe
+    
+    print("File downloaded successfully.")
 
 if __name__ == "__main__":
-    main()
+    host = 'example.com'
+    port = 80
 
-# copy and paste to any browser http://localhost:8080
+    # Upload file
+    upload_response = upload_file(host, port, 'example.txt')
+    print("Upload response:", upload_response)
+
+    # Download file
+    download_file(host, port, 'example.txt')
 ```
 
 ## OUTPUT
-![image](https://github.com/user-attachments/assets/24a994e1-333d-4bc0-a359-3312566b88f5)
 
-
-![image](https://github.com/user-attachments/assets/3127ad72-baf8-4cf8-abbc-5afa7b46d199)
-
-
+![384939290-588c6a6d-cc36-46fc-87d2-acd76ff2caa9](https://github.com/user-attachments/assets/8188a82e-7763-42e0-a11d-9da30c6d33d8)
 
 ## Result
 Thus the socket for HTTP for web page upload and download created and Executed
